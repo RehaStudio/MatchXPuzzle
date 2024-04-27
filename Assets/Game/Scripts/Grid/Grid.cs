@@ -6,7 +6,7 @@ public class Grid : MonoBehaviour
     #region Fields
     [SerializeField] private GameObject _SelectGameObject;
     private GridManager _GridManager;
-
+    private SpriteRenderer _SpriteRenderer;
     #endregion
 
     #region Properties
@@ -18,10 +18,13 @@ public class Grid : MonoBehaviour
     private void Constructor(GridManager gridManager)
     {
         this._GridManager = gridManager;
+        this._SpriteRenderer = GetComponent<SpriteRenderer>();
     }
-    public void SetSize(float size)
+    public void SetScale(float size)
     {
-        transform.localScale = Vector3.one * size / (Constants.GridSpriteSize * 2);
+        float spriteSize = _SpriteRenderer.sprite.bounds.size.x;
+        Vector3 localScale = Vector3.one * (size / spriteSize);
+        transform.localScale = localScale;
     }
     public void SetPosition(int x,int y)
     {
@@ -36,15 +39,27 @@ public class Grid : MonoBehaviour
         this.IsSelected = isSelected;
         _SelectGameObject.SetActive(isSelected);
     }
-    public class GridFactory : PlaceholderFactory<Grid>
-    { 
-    
-    }
+
     #region Unity_Functions
     private void OnMouseDown()
     {
         SetSelected(true);
-        _GridManager.CheckMatches(this);
+        _GridManager.CheckMatchesOfGrid(this);
     }
     #endregion
+
+    public class Pool : MemoryPool<Grid>
+    {
+        protected override void OnDespawned(Grid item)
+        {
+            item.gameObject.SetActive(false);
+            item.SetSelected(false);
+            base.OnDespawned(item);
+        }
+        protected override void OnSpawned(Grid item)
+        {
+            item.gameObject.SetActive(true);
+            base.OnSpawned(item);
+        }
+    }
 }

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using Zenject;
 
@@ -6,11 +7,13 @@ public class GridTable : MonoBehaviour
     #region Fields
     public Grid[,] Grids;
 
-    public int LineCount = 5;
-    public Vector2 GridSpacing;
+    [field: SerializeField] public int LineCount { get; private set; } = 5;
+    [SerializeField] private Vector2 GridSpacing;
 
-    private Grid.GridFactory _GridFactory;
+    private Grid.Pool _GridPool;
     private float _GridSize;
+
+    private Camera _MainCamera;
     #endregion
     #region Properties
     public float ScreenWidth => Screen.width;
@@ -18,52 +21,82 @@ public class GridTable : MonoBehaviour
     #endregion
 
     [Inject]
-    public void Constructor(Grid.GridFactory gridFactory)
+    public void Constructor(Grid.Pool gridPool)
     {
-        _GridFactory = gridFactory;
+        _GridPool = gridPool;
     }
-    private void Awake()
+
+    public void SetLineCount(int count)
     {
+        LineCount = count;
+    }
+    public void Rebuild()
+    {
+        Clear();
         CreateTable();
     }
-    private void CreateTable()
+    private void Clear()
+    {
+        foreach (var item in Grids)
+        {
+            _GridPool.Despawn(item);
+        }
+    }
+    public void CreateTable()
     {
         Grids = new Grid[LineCount, LineCount];
-        _GridSize = CalculateGridSize();
+        CalculateGridSize();
+        float localScale = GetGridLocalScale();
         for (int x = 0; x < LineCount; x++)
         {
             for (int y = 0; y < LineCount; y++)
             {
                 Grid grid = CreateGrid();
+                grid.transform.SetParent(transform);
                 grid.SetPosition(x, y);
-                grid.SetSize(_GridSize);
-                grid.SetScreenPosition(CalculateGridPosition(x, y));
+                grid.SetScale(localScale);
+                grid.SetScreenPosition(GetGridPosition(x, y));
                 Grids[x, y] = grid;
             }
         }
     }
     private Grid CreateGrid()
     {
-        return _GridFactory.Create();
+        return _GridPool.Spawn();
     }
-    public float CalculateGridSize()
+
+    public void CalculateGridSize()
     {
-        return Mathf.Min(ScreenWidth-GridSpacing.x*(LineCount-1), ScreenHeight- GridSpacing.y * (LineCount - 1)) / LineCount;
+        _GridSize = Mathf.Min(ScreenWidth - GridSpacing.x * (LineCount - 1), ScreenHeight - GridSpacing.y * (LineCount - 1)) / LineCount;
     }
-    public Vector3 CalculateGridPosition(int x, int y)
+    public float GetGridLocalScale()
     {
-        Vector3 position = Camera.main.ScreenToWorldPoint(new Vector3(x * _GridSize + _GridSize / 2 + GridSpacing.x * x
+        float worldScreenHeight = Camera.main.orthographicSize * 2f;
+        float worldScreenWidth = worldScreenHeight / (Screen.height - GridSpacing.y * (LineCount - 1)) * (Screen.width - GridSpacing.x * (LineCount - 1));
+        return Mathf.Min(worldScreenHeight, worldScreenWidth) / LineCount;
+    }
+    public Vector3 GetGridPosition(int x, int y)
+    {
+        Vector3 position = _MainCamera.ScreenToWorldPoint(new Vector3(x * _GridSize + _GridSize / 2 + GridSpacing.x * x
             ,ScreenHeight-  (y * _GridSize + _GridSize / 2 + GridSpacing.y * y)
             , 0));
         position.z = 0;
         return position;
     }
+
     public Grid GetGrid(Int2 position) 
     {
-        if(position.X< 0 || position.Y< 0)
+        if(position.X < 0 || position.Y < 0)
             return null;
         if (position.X >= LineCount || position.Y >= LineCount)
             return null;
         return Grids[position.X, position.Y];
     }
+    #region Unity_Functions
+    private void Awake()
+    {
+        _MainCamera = Camera.main;
+        CreateTable();
+    }
+    #endregion
 }

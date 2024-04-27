@@ -1,44 +1,65 @@
+using System;
 using System.Collections.Generic;
 using Zenject;
 
 public class GridManager 
 {
+    #region Events
+    public event Action OnMatchSuccessed;
+    #endregion
     #region Fields
-    private GridTable _GridTable;
+    private GameManager _GameManager; 
     private HashSet<Grid> _Matches = new HashSet<Grid>();
     #endregion
+    #region Properties
+    public GridTable GridTable { get; private set; }
+    #endregion
     [Inject]
-    public void Constructor (GridTable gridTable)
+    public void Constructor (GameManager gameManager, GridTable gridTable)
     {
-        this._GridTable = gridTable;
+        this._GameManager = gameManager;
+        this.GridTable = gridTable;
+
+        _GameManager.OnGameRebuild += OnGameRebuild;
     }
-    public void CheckMatches(Grid grid)
+ 
+    private void OnGameRebuild(int lineCount)
+    {
+        GridTable.SetLineCount(lineCount);
+        GridTable.Rebuild();
+    }
+
+    public void CheckMatchesOfGrid(Grid grid)
     {
         _Matches.Clear();
-        AddMatch(grid);
+        AddMatchedGrid(grid);
         if (_Matches.Count < 3)
             return;
         MatchesSuccess();
     }
-    private void AddMatch(Grid grid)
+    private void AddMatchedGrid(Grid grid)
     {
         _Matches.Add(grid);
-        CheckNextGridMatch(grid, Int2.UP);
-        CheckNextGridMatch(grid, Int2.DOWN);
-        CheckNextGridMatch(grid, Int2.LEFT);
-        CheckNextGridMatch(grid, Int2.RIGHT);
+        CheckNeighbourGrids(grid);
     }
-    private void CheckNextGridMatch(Grid grid, Int2 turn)
+    private void CheckNeighbourGrids(Grid grid)
     {
-        Int2 position = grid.Position + turn;
-        Grid nextGrid = _GridTable.GetGrid(position);
+        CheckMatchNextGrid(grid, Int2.UP);
+        CheckMatchNextGrid(grid, Int2.DOWN);
+        CheckMatchNextGrid(grid, Int2.LEFT);
+        CheckMatchNextGrid(grid, Int2.RIGHT);
+    }
+    private void CheckMatchNextGrid(Grid grid, Int2 direction)
+    {
+        Int2 position = grid.Position + direction;
+        Grid nextGrid = GridTable.GetGrid(position);
         if (nextGrid == null)
             return;
         if (nextGrid.IsSelected == false)
             return;
         if (_Matches.Contains(nextGrid))
             return;
-        AddMatch(nextGrid);
+        AddMatchedGrid(nextGrid);
     }
     private void MatchesSuccess()
     {
@@ -46,5 +67,6 @@ public class GridManager
         {
             item.SetSelected(false);
         }
+        OnMatchSuccessed?.Invoke();
     }
 }
