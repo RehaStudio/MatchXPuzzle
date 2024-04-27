@@ -5,10 +5,10 @@ using Zenject;
 public class GridTable : MonoBehaviour
 {
     #region Fields
-    public Grid[,] Grids;
 
-    [field: SerializeField] public int LineCount { get; private set; } = 5;
     [SerializeField] private Vector2 GridSpacing;
+
+    private Grid[,] _Grids;
 
     private Grid.Pool _GridPool;
     private float _GridSize;
@@ -16,6 +16,7 @@ public class GridTable : MonoBehaviour
     private Camera _MainCamera;
     #endregion
     #region Properties
+    [field: SerializeField] public int LineCount { get; private set; } = 5;
     public float ScreenWidth => Screen.width;
     public float ScreenHeight => Screen.height;
     #endregion
@@ -37,14 +38,14 @@ public class GridTable : MonoBehaviour
     }
     private void Clear()
     {
-        foreach (var item in Grids)
+        foreach (var item in _Grids)
         {
             _GridPool.Despawn(item);
         }
     }
     public void CreateTable()
     {
-        Grids = new Grid[LineCount, LineCount];
+        _Grids = new Grid[LineCount, LineCount];
         CalculateGridSize();
         float localScale = GetGridLocalScale();
         for (int x = 0; x < LineCount; x++)
@@ -56,7 +57,7 @@ public class GridTable : MonoBehaviour
                 grid.SetPosition(x, y);
                 grid.SetScale(localScale);
                 grid.SetScreenPosition(GetGridPosition(x, y));
-                Grids[x, y] = grid;
+                _Grids[x, y] = grid;
             }
         }
     }
@@ -71,8 +72,8 @@ public class GridTable : MonoBehaviour
     }
     public float GetGridLocalScale()
     {
-        float worldScreenHeight = Camera.main.orthographicSize * 2f;
-        float worldScreenWidth = worldScreenHeight / (Screen.height - GridSpacing.y * (LineCount - 1)) * (Screen.width - GridSpacing.x * (LineCount - 1));
+        float worldScreenHeight = _MainCamera.orthographicSize * 2f;
+        float worldScreenWidth = worldScreenHeight / (ScreenHeight - GridSpacing.y * (LineCount - 1)) * (ScreenWidth - GridSpacing.x * (LineCount - 1));
         return Mathf.Min(worldScreenHeight, worldScreenWidth) / LineCount;
     }
     public Vector3 GetGridPosition(int x, int y)
@@ -90,7 +91,7 @@ public class GridTable : MonoBehaviour
             return null;
         if (position.X >= LineCount || position.Y >= LineCount)
             return null;
-        return Grids[position.X, position.Y];
+        return _Grids[position.X, position.Y];
     }
     #region Unity_Functions
     private void Awake()
